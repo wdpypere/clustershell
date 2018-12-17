@@ -61,8 +61,9 @@ from ClusterShell.Event import EventHandler
 from ClusterShell.MsgTree import MsgTree
 from ClusterShell.NodeSet import RESOLVER_NOGROUP, set_std_group_resolver_config
 from ClusterShell.NodeSet import NodeSet, NodeSetParseError, std_group_resolver
-from ClusterShell.Task import Task, task_self
+from ClusterShell.Task import Task, task_self, task_wait
 
+from ClusterShell.Ugent.FixedCommands import get_command_from_config
 
 class UpdatePromptException(Exception):
     """Exception used by the signal handler"""
@@ -799,6 +800,7 @@ def main():
     parser.install_display_options(verbose_options=True)
     parser.install_filecopy_options()
     parser.install_connector_options()
+    parser.install_homemade_options()
 
     (options, args) = parser.parse_args()
 
@@ -927,6 +929,10 @@ def main():
     interactive = not len(args) and \
                   not (options.copy or options.rcopy)
     # check for foreground ttys presence (input)
+
+    if options.offline:
+        interactive = False
+
     stdin_isafgtty = sys.stdin.isatty() and \
         os.tcgetpgrp(sys.stdin.fileno()) == os.getpgrp()
     # check for special condition (empty command and stdin not a tty)
@@ -949,6 +955,9 @@ def main():
             os.tcgetpgrp(sys.stdout.fileno()) == os.getpgrp()
         user_interaction |= stdin_isafgtty and stdout_isafgtty
     display.vprint(VERB_DEBUG, "User interaction: %s" % user_interaction)
+
+    if options.offline:
+        user_interaction = False
     if user_interaction:
         # Standard input is a terminal and we want to perform some user
         # interactions in the main thread (using blocking calls), so
@@ -1077,6 +1086,13 @@ def main():
         elif options.rcopy:
             run_rcopy(task, args, options.dest_path, nodeset_base, timeout,
                       options.preserve_flag, display)
+
+        elif options.offline:
+            for node in nodeset_base:
+                cmd = get_command_from_config(node, 'offline')
+                display.vprint(VERB_DEBUG, 'UGent: Running command %s for node %s' %(cmd, node))
+                run_command(task, cmd , None, timeout, display, False)
+                task_wait()
         else:
             run_command(task, ' '.join(args), nodeset_base, timeout, display,
                         options.remote != 'no')

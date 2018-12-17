@@ -249,6 +249,16 @@ class OptionParser(optparse.OptionParser):
                                "execution (default is 'yes')")
         self.add_option_group(optgrp)
 
+    def install_homemade_options(self):
+        """Install UGent specific options"""
+        optgrp = optparse.OptionGroup(self, "UGent options")
+        optgrp.add_option("", "--offline", action="store_true", dest="offline",
+                          default=False,
+                          help="set selected nodes offline in torque/slurm.")
+
+        self.add_option_group(optgrp)
+
+
     def install_nodeset_commands(self):
         """Install nodeset commands"""
         optgrp = optparse.OptionGroup(self, "Commands")
